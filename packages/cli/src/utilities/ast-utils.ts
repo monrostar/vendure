@@ -1,7 +1,7 @@
 import { log } from '@clack/prompts';
 import fs from 'fs-extra';
 import path from 'node:path';
-import { Directory, Node, Project, ProjectOptions, SourceFile } from 'ts-morph';
+import { Directory, Node, Project, ProjectOptions, ScriptKind, SourceFile } from 'ts-morph';
 
 import { defaultManipulationSettings } from '../constants';
 import { EntityRef } from '../shared/entity-ref';
@@ -11,7 +11,7 @@ export function getTsMorphProject(options: ProjectOptions = {}) {
     if (!fs.existsSync(tsConfigPath)) {
         throw new Error('No tsconfig.json found in current directory');
     }
-    return new Project({
+    const project = new Project({
         tsConfigFilePath: tsConfigPath,
         manipulationSettings: defaultManipulationSettings,
         skipFileDependencyResolution: true,
@@ -20,6 +20,8 @@ export function getTsMorphProject(options: ProjectOptions = {}) {
         },
         ...options,
     });
+    project.enableLogging(false);
+    return project;
 }
 
 export function getPluginClasses(project: Project) {
@@ -103,6 +105,7 @@ export function createFile(project: Project, templatePath: string) {
     try {
         return project.createSourceFile(path.join('/.vendure-cli-temp/', tempFilePath), template, {
             overwrite: true,
+            scriptKind: ScriptKind.TS,
         });
     } catch (e: any) {
         log.error(e.message);
@@ -127,23 +130,25 @@ export function customizeCreateUpdateInputInterfaces(sourceFile: SourceFile, ent
         .getInterface('UpdateEntityInput')
         ?.rename(`Update${entityRef.name}Input`);
 
+    let index = 0;
     for (const { name, type, nullable } of entityRef.getProps()) {
         if (
             type.isBoolean() ||
             type.isString() ||
             type.isNumber() ||
-            (type.isClass() && type.getText() === 'Date')
+            (type.isObject() && type.getText() === 'Date')
         ) {
-            createInputInterface?.addProperty({
+            createInputInterface?.insertProperty(index, {
                 name,
                 type: writer => writer.write(type.getText()),
                 hasQuestionToken: nullable,
             });
-            updateInputInterface?.addProperty({
+            updateInputInterface?.insertProperty(index + 1, {
                 name,
                 type: writer => writer.write(type.getText()),
                 hasQuestionToken: true,
             });
+            index++;
         }
     }
 

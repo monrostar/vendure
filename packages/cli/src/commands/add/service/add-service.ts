@@ -65,7 +65,7 @@ async function addService(
         } catch (e: any) {
             if (e.message === Messages.NoEntitiesFound) {
                 log.info(`No entities found in plugin ${vendurePlugin.name}. Let's create one first.`);
-                const result = await addEntityCommand.run({ plugin: providedVendurePlugin });
+                const result = await addEntityCommand.run({ plugin: vendurePlugin });
                 entityRef = result.entityRef;
                 modifiedSourceFiles.push(...result.modifiedSourceFiles);
             } else {
@@ -207,7 +207,6 @@ function customizeFindAllMethod(serviceClassDeclaration: ClassDeclaration, entit
             writer.write(`.build(${entityRef.name}, options,`).block(() => {
                 writer.writeLine('relations,');
                 writer.writeLine('ctx,');
-                writer.writeLine('channelId: ctx.channelId,');
             });
             writer.write(')');
             writer.write('.getManyAndCount()');
